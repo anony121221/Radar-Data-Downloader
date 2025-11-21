@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root{
-      --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05);
+      --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05); --danger: #ef4444;
       color-scheme: dark; /* Forces native form elements to use dark theme */
     }
     *{box-sizing:border-box}
@@ -28,12 +28,27 @@
     /* Native inputs/selects styling */
     input[type=text],select,input[type=date],input[type=time]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:inherit}
     
+    /* Validation styling */
+    input[type=time].invalid {
+        border-color: var(--danger);
+        background: rgba(239, 68, 68, 0.1);
+    }
+    .error-msg {
+        color: var(--danger);
+        font-size: 12px;
+        margin-top: 6px;
+        display: none;
+        grid-column: 1/-1;
+    }
+    
     /* Force options to be dark in supported browsers */
     select option { background-color: #000; color: #fff; }
 
     .row{display:flex;gap:12px}
     .full{grid-column:1/-1}
-    button.primary{background:white;border:none;color:black;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
+    button.primary{background:white;border:none;color:black;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer; transition: opacity 0.2s;}
+    button.primary:disabled{opacity: 0.5; cursor: not-allowed;}
+    
     button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.2);color:var(--accent-2);padding:10px;border-radius:8px;cursor:pointer}
 
     #status{margin-top:14px;color:var(--muted);font-weight:600}
@@ -375,31 +390,32 @@
       </div>
 
       <div>
-        <label for="timezoneNote">Time (local) — choose start/end</label>
-        <div class="row">
+        <label for="timezoneNote" style="margin-bottom:0">Time (local)</label>
+        <div class="row" style="margin-top:6px">
           <div style="flex:1">
             <label class="small">Start</label>
-            <input id="startTime" type="time" value="00:00" />
+            <input id="startTime" type="time" value="00:00" required />
           </div>
           <div style="flex:1">
             <label class="small">End</label>
-            <input id="endTime" type="time" value="23:59" />
+            <input id="endTime" type="time" value="23:59" required />
           </div>
         </div>
+        <div id="timeError" class="error-msg">End time cannot be before start time.</div>
       </div>
 
       <div class="full">
         <label for="downloadMode">Download mode</label>
         <!-- Custom Dropdown Structure -->
         <div class="custom-select-container" id="customDownloadMode">
-          <div class="custom-select-trigger">Download as ZIP archive</div>
+          <div class="custom-select-trigger">Only show file list (no auto-download)</div>
           <div class="custom-options">
-            <div class="custom-option selected" data-value="zip">Download as ZIP archive</div>
-            <div class="custom-option" data-value="list">Only show file list (no auto-download)</div>
+            <div class="custom-option selected" data-value="list">Only show file list (no auto-download)</div>
+            <div class="custom-option" data-value="zip">Download as ZIP archive</div>
           </div>
         </div>
-        <!-- Hidden input to maintain compatibility with logic -->
-        <input type="hidden" id="downloadMode" value="zip">
+        <!-- Hidden input to maintain compatibility with logic - DEFAULT TO LIST -->
+        <input type="hidden" id="downloadMode" value="list">
       </div>
 
       <div class="full small">
@@ -408,8 +424,7 @@
       </div>
 
       <div class="full" style="display:flex;gap:12px;margin-top:10px">
-        <button id="downloadBtn" class="primary">Start Download</button>
-        <button id="showBtn" class="ghost">Show File List</button>
+        <button id="downloadBtn" class="primary">Execute</button>
       </div>
 
       <div class="full" id="status">Idle</div>
@@ -455,6 +470,41 @@
         optionsContainer.classList.remove('open');
       }
     });
+
+    // --- TIME VALIDATION LOGIC ---
+    const startInput = document.getElementById('startTime');
+    const endInput = document.getElementById('endTime');
+    const timeError = document.getElementById('timeError');
+    const dlBtn = document.getElementById('downloadBtn');
+
+    function validateTime() {
+        const s = startInput.value;
+        const e = endInput.value;
+
+        // 1. Update the 'min' constraint on the End Time input
+        // This prevents users from picking an earlier time in the native picker
+        endInput.min = s;
+
+        // 2. Manual Validation (Visual Feedback)
+        // If user typed manually or constraint failed
+        if (s && e && s > e) {
+            endInput.classList.add('invalid');
+            timeError.style.display = 'block';
+            dlBtn.disabled = true;
+        } else {
+            endInput.classList.remove('invalid');
+            timeError.style.display = 'none';
+            dlBtn.disabled = false;
+        }
+    }
+
+    startInput.addEventListener('input', validateTime);
+    endInput.addEventListener('input', validateTime);
+    
+    // Initial check
+    validateTime();
+    // -----------------------------
+
 
     // Public NEXRAD S3 bucket base
     const BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/";
@@ -563,6 +613,11 @@
       const matched = [];
       for(const item of items){
         const fname = item.key.split('/').pop();
+
+        // STRICT CHECK: Ensure the file actually starts with the requested Radar ID
+        // This ignores stray index.html or metadata files sometimes found in the bucket
+        if (!fname.startsWith(radar)) continue;
+
         const dt = parseTimestamp(fname);
         if(dt && dt>=startDT && dt<=endDT){ 
             matched.push({
@@ -648,7 +703,6 @@
     }
 
     document.getElementById('downloadBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:document.getElementById('downloadMode').value}));
-    document.getElementById('showBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:'list'}));
 
     // initialize selects to today
     (function(){
