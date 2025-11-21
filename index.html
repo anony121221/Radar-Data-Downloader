@@ -40,6 +40,21 @@
     .small{font-size:13px;color:var(--muted)}
     .footer{display:none;}
     a.link{color:var(--accent-2);text-decoration:none}
+    
+    /* File list specific styles */
+    .file-item {
+        padding: 8px 0;
+        border-bottom: 1px dashed rgba(255,255,255,0.1);
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .file-meta {
+        color: var(--muted);
+        font-size: 12px;
+        margin-left: 10px;
+    }
 
     /* --- Custom Dropdown Styling --- */
     .custom-select-container {
@@ -446,25 +461,51 @@
 
     function pad(n){return String(n).padStart(2,'0')}
 
-    // parse filename timestamp like KHGX20220322_120125_V06
+    // parse filename timestamp like KHGX20220322_120125_V06 (Time is UTC)
     function parseTimestamp(name){
       try{
         const [a,b] = name.split('_');
-        const date = a.slice(-8);
-        const time = b.slice(0,6);
-        return new Date(`${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}T${time.slice(0,2)}:${time.slice(2,4)}:${time.slice(4,6)}`);
+        const date = a.slice(-8); // 20220322
+        const time = b.slice(0,6); // 120125
+        
+        // Explicitly create UTC date
+        const y = parseInt(date.slice(0,4));
+        const m = parseInt(date.slice(4,6)) - 1; // Month is 0-indexed
+        const d = parseInt(date.slice(6,8));
+        const H = parseInt(time.slice(0,2));
+        const M = parseInt(time.slice(2,4));
+        const S = parseInt(time.slice(4,6));
+
+        return new Date(Date.UTC(y, m, d, H, M, S));
       }catch(e){return null}
     }
 
+    // format bytes to MB
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     // list objects by prefix using S3 ListObjectsV2 (returns XML)
+    // Modified to extract Size
     async function listFolder(prefix){
       const url = `${BUCKET}?list-type=2&prefix=${encodeURIComponent(prefix)}`;
       const res = await fetch(url);
       if(!res.ok) throw new Error(`Failed listing: ${res.status}`);
       const xml = await res.text();
       const doc = new DOMParser().parseFromString(xml,'text/xml');
-      const keys = [...doc.getElementsByTagName('Key')].map(k=>k.textContent).filter(Boolean);
-      return keys;
+      const contents = [...doc.getElementsByTagName('Contents')];
+      
+      // Map contents to extract Key and Size
+      return contents.map(node => {
+          return {
+              key: node.getElementsByTagName('Key')[0].textContent,
+              size: Number(node.getElementsByTagName('Size')[0].textContent)
+          };
+      });
     }
 
     // create invisible link to trigger browser download
@@ -514,16 +555,23 @@
       const d = pad(startDT.getDate());
       const prefix = `${y}/${m}/${d}/${radar}/`;
 
-      let keys = [];
+      let items = [];
       try{
-        keys = await listFolder(prefix);
+        items = await listFolder(prefix);
       }catch(err){statusEl.textContent = 'Error listing files: '+err.message; return}
 
       const matched = [];
-      for(const k of keys){
-        const fname = k.split('/').pop();
+      for(const item of items){
+        const fname = item.key.split('/').pop();
         const dt = parseTimestamp(fname);
-        if(dt && dt>=startDT && dt<=endDT){ matched.push({key:k, name:fname, dt}); }
+        if(dt && dt>=startDT && dt<=endDT){ 
+            matched.push({
+                key: item.key, 
+                name: fname, 
+                dt: dt, 
+                size: item.size 
+            }); 
+        }
       }
 
       matched.sort((a,b)=>a.dt-b.dt);
@@ -531,7 +579,19 @@
       if(mode==='list'){
         statusEl.innerHTML = `Found ${matched.length} files — showing list.`;
         // show a simple file list that user can click to download individually
-        const listHtml = matched.map(x=>`<div style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.02)"><a class='link' href='${BUCKET+encodeURIComponent(x.key)}' target='_blank'>${x.name}</a> <span style="color:var(--muted)">(${x.dt.toISOString()})</span></div>`).join('');
+        const listHtml = matched.map(x => {
+            const timeStr = x.dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', timeZoneName: 'short'});
+            return `
+            <div class="file-item">
+                <div>
+                    <a class='link' href='${BUCKET+encodeURIComponent(x.key)}' target='_blank'>${x.name}</a>
+                </div>
+                <div class="file-meta">
+                    ${formatSize(x.size)} | ${timeStr}
+                </div>
+            </div>`;
+        }).join('');
+        
         statusEl.innerHTML += '<div style="margin-top:10px;max-height:260px;overflow:auto;padding:10px;background:var(--glass);border-radius:8px">'+listHtml+'</div>';
         return;
       }
@@ -552,7 +612,7 @@
 
         for (const item of matched) {
             const fileUrl = BUCKET + item.key;
-            statusEl.textContent = `Fetching file ${count + 1} of ${matched.length}: ${item.name}...`;
+            statusEl.textContent = `Fetching file ${count + 1} of ${matched.length}: ${item.name} (${formatSize(item.size)})...`;
             
             try {
                 // Fetch blob data
