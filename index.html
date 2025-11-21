@@ -573,6 +573,7 @@
 
     // list objects by prefix using S3 ListObjectsV2 (returns XML)
     async function listFolder(prefix){
+      console.log(`Fetching S3 prefix: ${prefix}`); // LOGGING
       const url = `${BUCKET}?list-type=2&prefix=${encodeURIComponent(prefix)}`;
       const res = await fetch(url);
       if(!res.ok) throw new Error(`Failed listing: ${res.status}`);
@@ -580,6 +581,8 @@
       const doc = new DOMParser().parseFromString(xml,'text/xml');
       const contents = [...doc.getElementsByTagName('Contents')];
       
+      console.log(`Found ${contents.length} items in prefix ${prefix}`); // LOGGING
+
       return contents.map(node => {
           return {
               key: node.getElementsByTagName('Key')[0].textContent,
@@ -631,19 +634,46 @@
       const startDT = combineDateTime(date,startT);
       const endDT = combineDateTime(date,endT);
       if(endDT < startDT){alert('End time must be after start time');return}
+      
+      // LOGGING
+      console.log("--- DEBUG START ---");
+      console.log("Local Window:", startDT.toString(), "TO", endDT.toString());
+      console.log("UTC Window:", startDT.toISOString(), "TO", endDT.toISOString());
 
       statusEl.textContent = 'Listing files for '+radar+' on '+date+' ...';
 
-      // Use UTC Date for S3 Prefix to match how NEXRAD stores data
-      const y = startDT.getUTCFullYear();
-      const m = pad(startDT.getUTCMonth()+1);
-      const d = pad(startDT.getUTCDate());
-      const prefix = `${y}/${m}/${d}/${radar}/`;
+      // Helper to get prefix for a specific Date object
+      const getPrefix = (dObj) => {
+          const y = dObj.getUTCFullYear();
+          const m = pad(dObj.getUTCMonth()+1);
+          const d = pad(dObj.getUTCDate());
+          return `${y}/${m}/${d}/${radar}/`;
+      };
+
+      // Determine if we need to check two UTC days
+      // This happens if Local Time spans across the UTC midnight boundary
+      const prefix1 = getPrefix(startDT);
+      const prefix2 = getPrefix(endDT);
+
+      const prefixesToSearch = [prefix1];
+      if (prefix1 !== prefix2) {
+          prefixesToSearch.push(prefix2);
+      }
+
+      console.log("Prefixes to search:", prefixesToSearch);
 
       let items = [];
-      try{
-        items = await listFolder(prefix);
-      }catch(err){statusEl.textContent = 'Error listing files: '+err.message; return}
+      
+      // Fetch all prefixes
+      for(const p of prefixesToSearch) {
+        try{
+            const result = await listFolder(p);
+            items = items.concat(result);
+        }catch(err){
+            console.warn(`Could not list prefix ${p}:`, err);
+            // Don't crash if one day is empty (e.g. searching future data)
+        }
+      }
 
       const matched = [];
       for(const item of items){
@@ -663,6 +693,9 @@
       }
 
       matched.sort((a,b)=>a.dt-b.dt);
+      
+      console.log(`Matched ${matched.length} files after filtering by time.`); // LOGGING
+      console.log("--- DEBUG END ---");
 
       if(mode==='list'){
         statusEl.innerHTML = `Found ${matched.length} files — showing list.`;
