@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NEXRAD Level II Downloader</title>
+  <meta name="description" content="Browser-based NEXRAD Level II downloader for GitHub Pages (dark modern UI)." />
+  <style>
+    :root{
+      --bg:#0b1020; --card:#0f1724; --muted:#94a3b8; --accent:#7c3aed; --accent-2:#60a5fa; --glass:rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(180deg,#05060a 0%,#0b1020 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:28px}
+    .wrap{width:900px;max-width:96%;border-radius:14px;padding:22px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 10px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    .header{display:flex;align-items:center;gap:16px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:20px;margin:0}
+    p.lead{color:var(--muted);margin:6px 0 14px}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    .control{background:var(--card);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02)}
+    input[type=text],select,input[type=date],input[type=time]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+    .row{display:flex;gap:12px}
+    .full{grid-column:1/-1}
+    button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:white;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:10px;border-radius:8px;cursor:pointer}
+
+    #status{margin-top:14px;color:var(--muted);font-weight:600}
+    .small{font-size:13px;color:var(--muted)}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+    a.link{color:var(--accent-2);text-decoration:none}
+
+    /* responsive */
+    @media (max-width:720px){.grid{grid-template-columns:1fr}.row{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">N</div>
+      <div>
+        <h1>NEXRAD Level II — Downloader (Browser)</h1>
+        <p class="lead">Select date, times and radar site. Works on GitHub Pages (downloads individual files).</p>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div>
+        <label for="radar">Radar site (4-letter code)</label>
+        <input id="radar" type="text" placeholder="KHGX or KBMX" value="KHGX" />
+      </div>
+
+      <div>
+        <label for="siteList">Or pick from list (optional)</label>
+        <select id="siteList" class="control">
+          <option value="">-- select radar --</option>
+          <option value="KABR">KABR – Aberdeen, SD</option>
+          <option value="KABX">KABX – Albuquerque, NM</option>
+          <option value="KAKQ">KAKQ – Wakefield, VA</option>
+          <option value="KAMA">KAMA – Amarillo, TX</option>
+          <option value="KAMX">KAMX – Miami, FL</option>
+          <option value="KAPX">KAPX – Gaylord, MI</option>
+          <option value="KARX">KARX – La Crosse, WI</option>
+          <option value="KATX">KATX – Seattle, WA</option>
+          <option value="KBBX">KBBX – Beale AFB, CA</option>
+          <option value="KBGM">KBGM – Binghamton, NY</option>
+          <option value="KBHX">KBHX – Eureka, CA</option>
+          <option value="KBIS">KBIS – Bismarck, ND</option>
+          <option value="KBLX">KBLX – Billings, MT</option>
+          <option value="KBMX">KBMX – Birmingham, AL</option>
+          <option value="KBOX">KBOX – Boston, MA</option>
+          <option value="KBRO">KBRO – Brownsville, TX</option>
+          <option value="KBUF">KBUF – Buffalo, NY</option>
+          <option value="KBYX">KBYX – Key West, FL</option>
+          <option value="KCAE">KCAE – Columbia, SC</option>
+          <option value="KCBW">KCBW – Caribou, ME</option>
+          <option value="KCBX">KCBX – Boise, ID</option>
+          <option value="KCCX">KCCX – State College, PA</option>
+          <option value="KCLE">KCLE – Cleveland, OH</option>
+          <option value="KCLX">KCLX – Charleston, SC</option>
+          <option value="KCRP">KCRP – Corpus Christi, TX</option>
+          <option value="KCXX">KCXX – Burlington, VT</option>
+          <option value="KDAX">KDAX – Sacramento, CA</option>
+          <option value="KDDC">KDDC – Dodge City, KS</option>
+          <option value="KDFX">KDFX – Laughlin AFB, TX</option>
+          <option value="KDGX">KDGX – Jackson, MS</option>
+          <option value="KDIX">KDIX – Philadelphia, NJ</option>
+          <option value="KDLH">KDLH – Duluth, MN</option>
+          <option value="KDMX">KDMX – Des Moines, IA</option>
+          <option value="KDOX">KDOX – Dover, DE</option>
+          <option value="KDTX">KDTX – Detroit, MI</option>
+          <option value="KDLN">KDLN – (placeholder)</option>
+          <option value="KDYX">KDYX – Abilene, TX</option>
+          <option value="KEAX">KEAX – Kansas City, MO</option>
+          <option value="KEMX">KEMX – Tucson, AZ</option>
+          <option value="KENX">KENX – Albany, NY</option>
+          <option value="KEOX">KEOX – Ft. Rucker, AL</option>
+          <option value="KEPZ">KEPZ – El Paso, TX</option>
+          <option value="KESX">KESX – Las Vegas, NV</option>
+          <option value="KEVX">KEVX – Eglin AFB, FL</option>
+          <option value="KEWX">KEWX – Austin/San Antonio, TX</option>
+          <option value="KEYX">KEYX – Edwards AFB, CA</option>
+          <option value="KFCX">KFCX – Roanoke, VA</option>
+          <option value="KFDR">KFDR – Frederick, OK</option>
+          <option value="KFDX">KFDX – Cannon AFB, NM</option>
+          <option value="KFFC">KFFC – Atlanta, GA</option>
+          <option value="KFSD">KFSD – Sioux Falls, SD</option>
+          <option value="KFSX">KFSX – Flagstaff, AZ</option>
+          <option value="KFWS">KFWS – Dallas/Fort Worth, TX</option>
+          <option value="KGGW">KGGW – Glasgow, MT</option>
+          <option value="KGJX">KGJX – Grand Junction, CO</option>
+          <option value="KGLD">KGLD – Goodland, KS</option>
+          <option value="KGRB">KGRB – Green Bay, WI</option>
+          <option value="KGRK">KGRK – Ft. Hood, TX</option>
+          <option value="KGRR">KGRR – Grand Rapids, MI</option>
+          <option value="KGSP">KGSP – Greenville, SC</option>
+          <option value="KGWX">KGWX – Columbus AFB, MS</option>
+          <option value="KGYX">KGYX – Portland, ME</option>
+          <option value="KHDX">KHDX – Holloman AFB, NM</option>
+          <option value="KHGX">KHGX – Houston, TX</option>
+          <option value="KHNX">KHNX – Hanford, CA</option>
+          <option value="KHPX">KHPX – Fort Campbell, KY</option>
+          <option value="KHTX">KHTX – Huntsville, AL</option>
+          <option value="KICT">KICT – Wichita, KS</option>
+          <option value="KICX">KICX – Cedar City, UT</option>
+          <option value="KILN">KILN – Cincinnati, OH</option>
+          <option value="KILX">KILX – Lincoln, IL</option>
+          <option value="KIND">KIND – Indianapolis, IN</option>
+          <option value="KINX">KINX – Tulsa, OK</option>
+          <option value="KIWA">KIWA – Phoenix, AZ</option>
+          <option value="KIWX">KIWX – Northern Indiana</option>
+          <option value="KJAX">KJAX – Jacksonville, FL</option>
+          <option value="KJGX">KJGX – Robins AFB, GA</option>
+          <option value="KJKL">KJKL – Jackson, KY</option>
+          <option value="KLBB">KLBB – Lubbock, TX</option>
+          <option value="KLCH">KLCH – Lake Charles, LA</option>
+          <option value="KLGX">KLGX – Langley Hill, WA</option>
+          <option value="KLIX">KLIX – New Orleans, LA</option>
+          <option value="KLNX">KLNX – North Platte, NE</option>
+          <option value="KLOT">KLOT – Chicago, IL</option>
+          <option value="KLRX">KLRX – Elko, NV</option>
+          <option value="KLSX">KLSX – St. Louis, MO</option>
+          <option value="KLTX">KLTX – Wilmington, NC</option>
+          <option value="KLVX">KLVX – Louisville, KY</option>
+          <option value="KLWX">KLWX – Sterling, VA</option>
+          <option value="KLZK">KLZK – Little Rock, AR</option>
+          <!-- More available; ask if you want the full 159-site list -->
+        </select>
+      </div>
+
+      <div>
+        <label for="month">Date</label>
+        <div class="row">
+          <select id="month" class="control">
+            <option value="01">Jan</option>
+            <option value="02">Feb</option>
+            <option value="03">Mar</option>
+            <option value="04">Apr</option>
+            <option value="05">May</option>
+            <option value="06">Jun</option>
+            <option value="07">Jul</option>
+            <option value="08">Aug</option>
+            <option value="09">Sep</option>
+            <option value="10">Oct</option>
+            <option value="11">Nov</option>
+            <option value="12">Dec</option>
+          </select>
+          <select id="day" class="control">
+            <option value="01">1</option>
+            <option value="02">2</option>
+            <option value="03">3</option>
+            <option value="04">4</option>
+            <option value="05">5</option>
+            <option value="06">6</option>
+            <option value="07">7</option>
+            <option value="08">8</option>
+            <option value="09">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+            <option value="19">19</option>
+            <option value="20">20</option>
+            <option value="21">21</option>
+            <option value="22">22</option>
+            <option value="23">23</option>
+            <option value="24">24</option>
+            <option value="25">25</option>
+            <option value="26">26</option>
+            <option value="27">27</option>
+            <option value="28">28</option>
+            <option value="29">29</option>
+            <option value="30">30</option>
+            <option value="31">31</option>
+          </select>
+          <select id="year" class="control">
+            <option value="1991">1991</option>
+            <option value="1992">1992</option>
+            <option value="1993">1993</option>
+            <option value="1994">1994</option>
+            <option value="1995">1995</option>
+            <option value="1996">1996</option>
+            <option value="1997">1997</option>
+            <option value="1998">1998</option>
+            <option value="1999">1999</option>
+            <option value="2000">2000</option>
+            <option value="2001">2001</option>
+            <option value="2002">2002</option>
+            <option value="2003">2003</option>
+            <option value="2004">2004</option>
+            <option value="2005">2005</option>
+            <option value="2006">2006</option>
+            <option value="2007">2007</option>
+            <option value="2008">2008</option>
+            <option value="2009">2009</option>
+            <option value="2010">2010</option>
+            <option value="2011">2011</option>
+            <option value="2012">2012</option>
+            <option value="2013">2013</option>
+            <option value="2014">2014</option>
+            <option value="2015">2015</option>
+            <option value="2016">2016</option>
+            <option value="2017">2017</option>
+            <option value="2018">2018</option>
+            <option value="2019">2019</option>
+            <option value="2020">2020</option>
+            <option value="2021">2021</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="timezoneNote">Time (local) — choose start/end</label>
+        <div class="row">
+          <div style="flex:1">
+            <label class="small">Start</label>
+            <input id="startTime" type="time" value="00:00" />
+          </div>
+          <div style="flex:1">
+            <label class="small">End</label>
+            <input id="endTime" type="time" value="23:59" />
+          </div>
+        </div>
+      </div>
+
+      <div class="full">
+        <label for="downloadMode">Download mode</label>
+        <select id="downloadMode">
+          <option value="direct">Direct downloads (one file per browser download)</option>
+          <option value="list">Only show file list (no auto-download)</option>
+        </select>
+      </div>
+
+      <div class="full small">
+        <label>Notes</label>
+        <div class="control small">This runs fully client-side and fetches the public S3 index. Depending on browser settings you will get one download prompt per file when using <strong>Direct downloads</strong>. Use "Only show file list" to inspect before downloading or to feed to a separate downloader.</div>
+      </div>
+
+      <div class="full" style="display:flex;gap:12px;margin-top:10px">
+        <button id="downloadBtn" class="primary">Start Download</button>
+        <button id="showBtn" class="ghost">Show File List</button>
+      </div>
+
+      <div class="full" id="status">Idle</div>
+    </div>
+
+    <div class="footer">
+      <div class="small">Built for GitHub Pages — dark modern UI</div>
+      <div class="small">Example image: <a id="uploadedImage" class="link" href="/mnt/data/fe8db6f9-cbed-446c-bc72-c889c9a18744.png">/mnt/data/fe8db6f9-cbed-446c-bc72-c889c9a18744.png</a></div>
+    </div>
+  </div>
+
+  <script>
+    // Public NEXRAD S3 bucket base
+    const BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/";
+
+    function pad(n){return String(n).padStart(2,'0')}
+
+    // parse filename timestamp like KHGX20220322_120125_V06
+    function parseTimestamp(name){
+      try{
+        const [a,b] = name.split('_');
+        const date = a.slice(-8);
+        const time = b.slice(0,6);
+        return new Date(`${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}T${time.slice(0,2)}:${time.slice(2,4)}:${time.slice(4,6)}`);
+      }catch(e){return null}
+    }
+
+    // list objects by prefix using S3 ListObjectsV2 (returns XML)
+    async function listFolder(prefix){
+      const url = `${BUCKET}?list-type=2&prefix=${encodeURIComponent(prefix)}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`Failed listing: ${res.status}`);
+      const xml = await res.text();
+      const doc = new DOMParser().parseFromString(xml,'text/xml');
+      const keys = [...doc.getElementsByTagName('Key')].map(k=>k.textContent).filter(Boolean);
+      return keys;
+    }
+
+    // create invisible link to trigger browser download
+    function triggerDownload(url, filename){
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // combine date + time strings into Date object
+    function combineDateTime(dateStr,timeStr){
+      const d = new Date(dateStr);
+      const [hh,mm] = timeStr.split(':');
+      d.setHours(Number(hh),Number(mm),0,0);
+      return d;
+    }
+
+    document.getElementById('siteList').addEventListener('change', e=>{
+      const v = e.target.value;
+      if(v) document.getElementById('radar').value = v;
+    });
+
+    async function gatherAndMaybeDownload({mode}){
+      const radar = document.getElementById('radar').value.trim().toUpperCase();
+      const yyyy = document.getElementById('year').value;
+      const mm = document.getElementById('month').value;
+      const dd = document.getElementById('day').value;
+      const date = `${yyyy}-${mm}-${dd}`;
+      const startT = document.getElementById('startTime').value || '00:00';
+      const endT = document.getElementById('endTime').value || '23:59';
+      const statusEl = document.getElementById('status');
+
+      if(!radar || radar.length!==4){alert('Radar must be a 4-letter station code (e.g., KHGX)');return}
+      if(!date){alert('Please pick a date');return}
+
+      const startDT = combineDateTime(date,startT);
+      const endDT = combineDateTime(date,endT);
+      if(endDT < startDT){alert('End time must be after start time');return}
+
+      statusEl.textContent = 'Listing files for '+radar+' on '+date+' ...';
+
+      const y = startDT.getFullYear();
+      const m = pad(startDT.getMonth()+1);
+      const d = pad(startDT.getDate());
+      const prefix = `${y}/${m}/${d}/${radar}/`;
+
+      let keys = [];
+      try{
+        keys = await listFolder(prefix);
+      }catch(err){statusEl.textContent = 'Error listing files: '+err.message; return}
+
+      const matched = [];
+      for(const k of keys){
+        const fname = k.split('/').pop();
+        const dt = parseTimestamp(fname);
+        if(dt && dt>=startDT && dt<=endDT){ matched.push({key:k, name:fname, dt}); }
+      }
+
+      matched.sort((a,b)=>a.dt-b.dt);
+
+      if(mode==='list'){
+        statusEl.innerHTML = `Found ${matched.length} files — showing list.`;
+        // show a simple file list that user can click to download individually
+        const listHtml = matched.map(x=>`<div style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.02)"><a class='link' href='${BUCKET+encodeURIComponent(x.key)}' target='_blank'>${x.name}</a> <span style="color:var(--muted)">(${x.dt.toISOString()})</span></div>`).join('');
+        statusEl.innerHTML += '<div style="margin-top:10px;max-height:260px;overflow:auto;padding:10px;background:var(--glass);border-radius:8px">'+listHtml+'</div>';
+        return;
+      }
+
+      // direct download mode
+      statusEl.textContent = `Downloading ${matched.length} files (your browser may prompt per file)...`;
+      let count = 0;
+      for(const item of matched){
+        const url = BUCKET + item.key;
+        try{
+          triggerDownload(url,item.name);
+          count++;
+          statusEl.textContent = `Triggered download ${count}/${matched.length}`;
+          // small delay to avoid overwhelming browser (adjust if needed)
+          await new Promise(r=>setTimeout(r,180));
+        }catch(e){console.error('download fail',e)}
+      }
+      statusEl.textContent = `Done — triggered ${count} downloads.`;
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:'direct'}));
+    document.getElementById('showBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:'list'}));
+
+    // initialize selects to today
+    (function(){
+      const d = new Date();
+      document.getElementById('year').value = d.getFullYear();
+      document.getElementById('month').value = String(d.getMonth()+1).padStart(2,'0');
+      document.getElementById('day').value = String(d.getDate()).padStart(2,'0');
+    })();
+  </script>
+</body>
+</html>
