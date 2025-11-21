@@ -56,6 +56,30 @@
     .footer{display:none;}
     a.link{color:var(--accent-2);text-decoration:none}
     
+    /* Radio Button Group */
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .radio-label input {
+      accent-color: var(--primary-color);
+      width: auto;
+      margin: 0;
+    }
+    .radio-label.active {
+      color: white;
+      font-weight: 600;
+    }
+
     /* File list specific styles */
     .file-item {
         padding: 8px 0;
@@ -382,8 +406,19 @@
       </div>
 
       <div>
-        <label for="timezoneNote" style="margin-bottom:0">Time (local)</label>
-        <div class="row" style="margin-top:6px">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:6px;">
+          <label style="margin-bottom:0">Time Selection</label>
+          <div class="radio-group">
+            <label class="radio-label active">
+              <input type="radio" name="timezone" value="utc" checked> UTC
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="timezone" value="local"> Local
+            </label>
+          </div>
+        </div>
+        
+        <div class="row">
           <div style="flex:1">
             <label class="small">Start</label>
             <input id="startTime" type="time" value="00:00" required />
@@ -468,6 +503,15 @@
       if (!customSelect.contains(e.target)) {
         optionsContainer.classList.remove('open');
       }
+    });
+
+    // --- RADIO BUTTON STYLING ---
+    const radios = document.querySelectorAll('input[name="timezone"]');
+    radios.forEach(r => {
+        r.addEventListener('change', () => {
+            document.querySelectorAll('.radio-label').forEach(l => l.classList.remove('active'));
+            r.parentElement.classList.add('active');
+        });
     });
 
     // --- DYNAMIC DAYS LOGIC ---
@@ -604,11 +648,15 @@
       a.remove();
     }
 
-    // FIX: Use simple date construction without timezone shifts
-    function combineDateTime(dateStr, timeStr) {
+    // FIX: Support UTC vs Local construction
+    function combineDateTime(dateStr, timeStr, useUTC) {
         // dateStr is YYYY-MM-DD
         const [y, m, d] = dateStr.split('-').map(Number);
         const [hh, mm] = timeStr.split(':').map(Number);
+        
+        if (useUTC) {
+            return new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+        }
         // Construct Date object in Local Time explicitly
         return new Date(y, m - 1, d, hh, mm, 0);
     }
@@ -627,6 +675,9 @@
       const startT = document.getElementById('startTime').value || '00:00';
       const endT = document.getElementById('endTime').value || '23:59';
       const statusEl = document.getElementById('status');
+      
+      // Get Timezone Mode
+      const useUTC = document.querySelector('input[name="timezone"]:checked').value === 'utc';
 
       // Reset progress UI
       progressContainer.style.display = 'none';
@@ -635,14 +686,15 @@
       if(!radar || radar.length!==4){alert('Radar must be a 4-letter station code (e.g., KHGX)');return}
       if(!date){alert('Please pick a date');return}
 
-      const startDT = combineDateTime(date,startT);
-      const endDT = combineDateTime(date,endT);
+      const startDT = combineDateTime(date, startT, useUTC);
+      const endDT = combineDateTime(date, endT, useUTC);
       if(endDT < startDT){alert('End time must be after start time');return}
       
       // LOGGING
       console.log("--- DEBUG START ---");
-      console.log("Local Window:", startDT.toString(), "TO", endDT.toString());
-      console.log("UTC Window:", startDT.toISOString(), "TO", endDT.toISOString());
+      console.log(`Mode: ${useUTC ? 'UTC' : 'LOCAL'}`);
+      console.log("Start:", startDT.toISOString());
+      console.log("End:  ", endDT.toISOString());
 
       statusEl.textContent = 'Listing files for '+radar+' on '+date+' ...';
 
