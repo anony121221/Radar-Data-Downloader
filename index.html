@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root{
-      --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05); --danger: #ef4444;
+      --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05); --danger: #ef4444; --primary-color: #3b82f6;
       color-scheme: dark; /* Forces native form elements to use dark theme */
     }
     *{box-sizing:border-box}
@@ -69,6 +69,27 @@
         color: var(--muted);
         font-size: 12px;
         margin-left: 10px;
+    }
+
+    /* --- Progress Bar Styling --- */
+    .progress-wrap {
+        grid-column: 1/-1;
+        margin-top: 16px;
+        display: none; /* Hidden by default */
+    }
+    .progress-track {
+        width: 100%;
+        height: 8px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: var(--primary-color);
+        width: 0%;
+        transition: width 0.1s linear;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
     }
 
     /* --- Custom Dropdown Styling --- */
@@ -427,6 +448,13 @@
         <button id="downloadBtn" class="primary">Execute</button>
       </div>
 
+      <!-- Added Progress Bar Container -->
+      <div id="progressContainer" class="progress-wrap">
+        <div class="progress-track">
+            <div id="progressBar" class="progress-fill"></div>
+        </div>
+      </div>
+
       <div class="full" id="status">Idle</div>
     </div>
 
@@ -508,6 +536,8 @@
 
     // Public NEXRAD S3 bucket base
     const BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/";
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
 
     function pad(n){return String(n).padStart(2,'0')}
 
@@ -591,6 +621,10 @@
       const endT = document.getElementById('endTime').value || '23:59';
       const statusEl = document.getElementById('status');
 
+      // Reset progress UI
+      progressContainer.style.display = 'none';
+      progressBar.style.width = '0%';
+
       if(!radar || radar.length!==4){alert('Radar must be a 4-letter station code (e.g., KHGX)');return}
       if(!date){alert('Please pick a date');return}
 
@@ -661,6 +695,9 @@
             return;
         }
 
+        // Show progress bar container
+        progressContainer.style.display = 'block';
+
         const zip = new JSZip();
         let count = 0;
         let failCount = 0;
@@ -678,6 +715,11 @@
                 // Add to zip
                 zip.file(item.name, blob);
                 count++;
+
+                // Update Progress Bar
+                const percent = (count / matched.length) * 100;
+                progressBar.style.width = percent + '%';
+
             } catch (err) {
                 console.error("Fetch failed for", item.name, err);
                 failCount++;
@@ -686,6 +728,7 @@
 
         if (count === 0) {
             statusEl.textContent = "Failed to download any files (possibly CORS restricted).";
+            progressContainer.style.display = 'none';
             return;
         }
 
