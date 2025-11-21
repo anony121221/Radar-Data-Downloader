@@ -338,37 +338,8 @@
             <option value="12">Dec</option>
           </select>
           <select id="day" class="control">
+            <!-- Dynamically populated -->
             <option value="01">1</option>
-            <option value="02">2</option>
-            <option value="03">3</option>
-            <option value="04">4</option>
-            <option value="05">5</option>
-            <option value="06">6</option>
-            <option value="07">7</option>
-            <option value="08">8</option>
-            <option value="09">9</option>
-            <option value="10">10</option>
-            <option value="11">11</option>
-            <option value="12">12</option>
-            <option value="13">13</option>
-            <option value="14">14</option>
-            <option value="15">15</option>
-            <option value="16">16</option>
-            <option value="17">17</option>
-            <option value="18">18</option>
-            <option value="19">19</option>
-            <option value="20">20</option>
-            <option value="21">21</option>
-            <option value="22">22</option>
-            <option value="23">23</option>
-            <option value="24">24</option>
-            <option value="25">25</option>
-            <option value="26">26</option>
-            <option value="27">27</option>
-            <option value="28">28</option>
-            <option value="29">29</option>
-            <option value="30">30</option>
-            <option value="31">31</option>
           </select>
           <select id="year" class="control">
             <option value="1991">1991</option>
@@ -499,6 +470,42 @@
       }
     });
 
+    // --- DYNAMIC DAYS LOGIC ---
+    const monthSel = document.getElementById('month');
+    const yearSel = document.getElementById('year');
+    const daySel = document.getElementById('day');
+
+    function daysInMonth(m, y) {
+        return new Date(y, m, 0).getDate();
+    }
+
+    function updateDays() {
+        const y = parseInt(yearSel.value);
+        const m = parseInt(monthSel.value);
+        const currentDay = parseInt(daySel.value) || 1;
+        const maxDays = daysInMonth(m, y);
+
+        // Keep existing selection if valid, else clamp
+        let newDay = currentDay;
+        if (newDay > maxDays) newDay = maxDays;
+
+        daySel.innerHTML = '';
+        for(let i=1; i<=maxDays; i++){
+            const val = String(i).padStart(2,'0');
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = i;
+            if(i === newDay) opt.selected = true;
+            daySel.appendChild(opt);
+        }
+    }
+
+    monthSel.addEventListener('change', updateDays);
+    yearSel.addEventListener('change', updateDays);
+    // Initialize days on load
+    // -----------------------------
+
+
     // --- TIME VALIDATION LOGIC ---
     const startInput = document.getElementById('startTime');
     const endInput = document.getElementById('endTime');
@@ -509,12 +516,8 @@
         const s = startInput.value;
         const e = endInput.value;
 
-        // 1. Update the 'min' constraint on the End Time input
-        // This prevents users from picking an earlier time in the native picker
         endInput.min = s;
 
-        // 2. Manual Validation (Visual Feedback)
-        // If user typed manually or constraint failed
         if (s && e && s > e) {
             endInput.classList.add('invalid');
             timeError.style.display = 'block';
@@ -529,7 +532,6 @@
     startInput.addEventListener('input', validateTime);
     endInput.addEventListener('input', validateTime);
     
-    // Initial check
     validateTime();
     // -----------------------------
 
@@ -550,7 +552,7 @@
         
         // Explicitly create UTC date
         const y = parseInt(date.slice(0,4));
-        const m = parseInt(date.slice(4,6)) - 1; // Month is 0-indexed
+        const m = parseInt(date.slice(4,6)) - 1; 
         const d = parseInt(date.slice(6,8));
         const H = parseInt(time.slice(0,2));
         const M = parseInt(time.slice(2,4));
@@ -570,7 +572,6 @@
     }
 
     // list objects by prefix using S3 ListObjectsV2 (returns XML)
-    // Modified to extract Size
     async function listFolder(prefix){
       const url = `${BUCKET}?list-type=2&prefix=${encodeURIComponent(prefix)}`;
       const res = await fetch(url);
@@ -579,7 +580,6 @@
       const doc = new DOMParser().parseFromString(xml,'text/xml');
       const contents = [...doc.getElementsByTagName('Contents')];
       
-      // Map contents to extract Key and Size
       return contents.map(node => {
           return {
               key: node.getElementsByTagName('Key')[0].textContent,
@@ -588,7 +588,6 @@
       });
     }
 
-    // create invisible link to trigger browser download
     function triggerDownload(url, filename){
       const a = document.createElement('a');
       a.href = url;
@@ -598,12 +597,13 @@
       a.remove();
     }
 
-    // combine date + time strings into Date object
-    function combineDateTime(dateStr,timeStr){
-      const d = new Date(dateStr);
-      const [hh,mm] = timeStr.split(':');
-      d.setHours(Number(hh),Number(mm),0,0);
-      return d;
+    // FIX: Use simple date construction without timezone shifts
+    function combineDateTime(dateStr, timeStr) {
+        // dateStr is YYYY-MM-DD
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const [hh, mm] = timeStr.split(':').map(Number);
+        // Construct Date object in Local Time explicitly
+        return new Date(y, m - 1, d, hh, mm, 0);
     }
 
     document.getElementById('siteList').addEventListener('change', e=>{
@@ -634,9 +634,10 @@
 
       statusEl.textContent = 'Listing files for '+radar+' on '+date+' ...';
 
-      const y = startDT.getFullYear();
-      const m = pad(startDT.getMonth()+1);
-      const d = pad(startDT.getDate());
+      // Use UTC Date for S3 Prefix to match how NEXRAD stores data
+      const y = startDT.getUTCFullYear();
+      const m = pad(startDT.getUTCMonth()+1);
+      const d = pad(startDT.getUTCDate());
       const prefix = `${y}/${m}/${d}/${radar}/`;
 
       let items = [];
@@ -648,8 +649,6 @@
       for(const item of items){
         const fname = item.key.split('/').pop();
 
-        // STRICT CHECK: Ensure the file actually starts with the requested Radar ID
-        // This ignores stray index.html or metadata files sometimes found in the bucket
         if (!fname.startsWith(radar)) continue;
 
         const dt = parseTimestamp(fname);
@@ -667,7 +666,6 @@
 
       if(mode==='list'){
         statusEl.innerHTML = `Found ${matched.length} files — showing list.`;
-        // show a simple file list that user can click to download individually
         const listHtml = matched.map(x => {
             const timeStr = x.dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', timeZoneName: 'short'});
             return `
@@ -685,8 +683,6 @@
         return;
       }
 
-      // ZIP download mode (formerly direct)
-      // Check for zip/direct compatibility
       if (mode === 'zip' || mode === 'direct') {
         statusEl.textContent = `Preparing to fetch and zip ${matched.length} files...`;
         
@@ -695,7 +691,6 @@
             return;
         }
 
-        // Show progress bar container
         progressContainer.style.display = 'block';
 
         const zip = new JSZip();
@@ -707,16 +702,13 @@
             statusEl.textContent = `Fetching file ${count + 1} of ${matched.length}: ${item.name} (${formatSize(item.size)})...`;
             
             try {
-                // Fetch blob data
                 const response = await fetch(fileUrl);
                 if (!response.ok) throw new Error(`HTTP error ${response.status}`);
                 const blob = await response.blob();
                 
-                // Add to zip
                 zip.file(item.name, blob);
                 count++;
 
-                // Update Progress Bar
                 const percent = (count / matched.length) * 100;
                 progressBar.style.width = percent + '%';
 
@@ -752,6 +744,9 @@
       const d = new Date();
       document.getElementById('year').value = d.getFullYear();
       document.getElementById('month').value = String(d.getMonth()+1).padStart(2,'0');
+      
+      // Setup days properly on first load
+      updateDays();
       document.getElementById('day').value = String(d.getDate()).padStart(2,'0');
     })();
   </script>
