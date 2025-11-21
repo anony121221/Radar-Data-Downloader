@@ -4,32 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NEXRAD Level II Downloader</title>
-  <meta name="description" content="Browser-based NEXRAD Level II downloader for GitHub Pages (dark modern UI)." />
+  <meta name="description" content="Browser-based NEXRAD Level II downloader." />
   <style>
     :root{
-      --bg:#0b1020; --card:#0f1724; --muted:#94a3b8; --accent:#7c3aed; --accent-2:#60a5fa; --glass:rgba(255,255,255,0.03);
+      --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05);
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
-    body{background:linear-gradient(180deg,#05060a 0%,#0b1020 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:28px}
-    .wrap{width:900px;max-width:96%;border-radius:14px;padding:22px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 10px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    body{background:var(--bg);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:28px}
+    .wrap{width:900px;max-width:96%;border-radius:14px;padding:22px;background:var(--card);box-shadow:0 10px 30px rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)}
     .header{display:flex;align-items:center;gap:16px}
-    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700}
+    .logo{width:44px;height:44px;border-radius:10px;background:white;color:black;display:flex;align-items:center;justify-content:center;font-weight:700}
     h1{font-size:20px;margin:0}
     p.lead{color:var(--muted);margin:6px 0 14px}
 
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-    .control{background:var(--card);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02)}
-    input[type=text],select,input[type=date],input[type=time]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+    .control{background:var(--card);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)}
+    input[type=text],select,input[type=date],input[type=time]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:inherit}
     .row{display:flex;gap:12px}
     .full{grid-column:1/-1}
-    button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:white;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
-    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:10px;border-radius:8px;cursor:pointer}
+    button.primary{background:white;border:none;color:black;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.2);color:var(--accent-2);padding:10px;border-radius:8px;cursor:pointer}
 
     #status{margin-top:14px;color:var(--muted);font-weight:600}
     .small{font-size:13px;color:var(--muted)}
-    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+    .footer{display:none;}
     a.link{color:var(--accent-2);text-decoration:none}
 
     /* responsive */
@@ -42,7 +42,7 @@
       <div class="logo">N</div>
       <div>
         <h1>NEXRAD Level II — Downloader (Browser)</h1>
-        <p class="lead">Select date, times and radar site. Works on GitHub Pages (downloads individual files).</p>
+        <p class="lead">Select date, times and radar site.</p>
       </div>
     </div>
 
@@ -53,7 +53,7 @@
       </div>
 
       <div>
-        <label for="siteList">Or pick from list (optional)</label>
+        <label for="siteList">Or pick from list (CONUS Only)</label>
         <select id="siteList" class="control">
           <option value="">-- select radar --</option>
           <option value="KABR">KABR – Aberdeen, SD</option>
@@ -82,6 +82,7 @@
           <option value="KCLX">KCLX – Charleston, SC</option>
           <option value="KCRP">KCRP – Corpus Christi, TX</option>
           <option value="KCXX">KCXX – Burlington, VT</option>
+          <option value="KCYS">KCYS – Cheyenne, WY</option>
           <option value="KDAX">KDAX – Sacramento, CA</option>
           <option value="KDDC">KDDC – Dodge City, KS</option>
           <option value="KDFX">KDFX – Laughlin AFB, TX</option>
@@ -89,10 +90,10 @@
           <option value="KDIX">KDIX – Philadelphia, NJ</option>
           <option value="KDLH">KDLH – Duluth, MN</option>
           <option value="KDMX">KDMX – Des Moines, IA</option>
-          <option value="KDOX">KDOX – Dover, DE</option>
+          <option value="KDOX">KDOX – Dover AFB, DE</option>
           <option value="KDTX">KDTX – Detroit, MI</option>
-          <option value="KDLN">KDLN – (placeholder)</option>
-          <option value="KDYX">KDYX – Abilene, TX</option>
+          <option value="KDVN">KDVN – Davenport, IA</option>
+          <option value="KDYX">KDYX – Abilene/Dyess AFB, TX</option>
           <option value="KEAX">KEAX – Kansas City, MO</option>
           <option value="KEMX">KEMX – Tucson, AZ</option>
           <option value="KENX">KENX – Albany, NY</option>
@@ -146,7 +147,57 @@
           <option value="KLVX">KLVX – Louisville, KY</option>
           <option value="KLWX">KLWX – Sterling, VA</option>
           <option value="KLZK">KLZK – Little Rock, AR</option>
-          <!-- More available; ask if you want the full 159-site list -->
+          <option value="KMAF">KMAF – Midland/Odessa, TX</option>
+          <option value="KMAX">KMAX – Medford, OR</option>
+          <option value="KMBX">KMBX – Minot AFB, ND</option>
+          <option value="KMHX">KMHX – Morehead City, NC</option>
+          <option value="KMKX">KMKX – Milwaukee, WI</option>
+          <option value="KMLB">KMLB – Melbourne, FL</option>
+          <option value="KMOB">KMOB – Mobile, AL</option>
+          <option value="KMPX">KMPX – Minneapolis, MN</option>
+          <option value="KMQT">KMQT – Marquette, MI</option>
+          <option value="KMRX">KMRX – Knoxville, TN</option>
+          <option value="KMSX">KMSX – Missoula, MT</option>
+          <option value="KMTX">KMTX – Salt Lake City, UT</option>
+          <option value="KMUX">KMUX – San Francisco, CA</option>
+          <option value="KMVX">KMVX – Grand Forks, ND</option>
+          <option value="KMXX">KMXX – Maxwell AFB, AL</option>
+          <option value="KNKX">KNKX – San Diego, CA</option>
+          <option value="KNQA">KNQA – Memphis, TN</option>
+          <option value="KOAX">KOAX – Omaha, NE</option>
+          <option value="KOHX">KOHX – Nashville, TN</option>
+          <option value="KOKX">KOKX – Upton, NY</option>
+          <option value="KOTX">KOTX – Spokane, WA</option>
+          <option value="KPAH">KPAH – Paducah, KY</option>
+          <option value="KPBZ">KPBZ – Pittsburgh, PA</option>
+          <option value="KPDT">KPDT – Pendleton, OR</option>
+          <option value="KPOE">KPOE – Fort Polk, LA</option>
+          <option value="KPUX">KPUX – Pueblo, CO</option>
+          <option value="KRAX">KRAX – Raleigh/Durham, NC</option>
+          <option value="KRGX">KRGX – Reno, NV</option>
+          <option value="KRIW">KRIW – Riverton, WY</option>
+          <option value="KRLX">KRLX – Charleston, WV</option>
+          <option value="KRTX">KRTX – Portland, OR</option>
+          <option value="KSFX">KSFX – Pocatello, ID</option>
+          <option value="KSGF">KSGF – Springfield, MO</option>
+          <option value="KSHV">KSHV – Shreveport, LA</option>
+          <option value="KSJT">KSJT – San Angelo, TX</option>
+          <option value="KSOX">KSOX – Santa Ana, CA</option>
+          <option value="KSRX">KSRX – Fort Smith, AR</option>
+          <option value="KTBW">KTBW – Tampa, FL</option>
+          <option value="KTFX">KTFX – Great Falls, MT</option>
+          <option value="KTLH">KTLH – Tallahassee, FL</option>
+          <option value="KTLX">KTLX – Oklahoma City, OK</option>
+          <option value="KTQX">KTQX – Tuscaloosa, AL</option>
+          <option value="KTWX">KTWX – Topeka, KS</option>
+          <option value="KTYX">KTYX – Fort Drum, NY</option>
+          <option value="KUDX">KUDX – Rapid City, SD</option>
+          <option value="KUEX">KUEX – Hastings, NE</option>
+          <option value="KVAX">KVAX – Valdosta, GA</option>
+          <option value="KVBX">KVBX – Vandenberg AFB, CA</option>
+          <option value="KVNX">KVNX – Vance AFB, OK</option>
+          <option value="KVWX">KVWX – Evansville, IN</option>
+          <option value="KYUX">KYUX – Yuma, AZ</option>
         </select>
       </div>
 
@@ -276,8 +327,6 @@
     </div>
 
     <div class="footer">
-      <div class="small">Built for GitHub Pages — dark modern UI</div>
-      <div class="small">Example image: <a id="uploadedImage" class="link" href="/mnt/data/fe8db6f9-cbed-446c-bc72-c889c9a18744.png">/mnt/data/fe8db6f9-cbed-446c-bc72-c889c9a18744.png</a></div>
     </div>
   </div>
 
