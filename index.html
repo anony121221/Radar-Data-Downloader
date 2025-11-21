@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NEXRAD Level II Downloader</title>
   <meta name="description" content="Browser-based NEXRAD Level II downloader." />
+  <!-- Added JSZip for client-side zipping -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root{
       --bg:#000000; --card:#000000; --muted:#94a3b8; --accent:#ffffff; --accent-2:#e6eef8; --glass:rgba(255,255,255,0.05);
+      color-scheme: dark; /* Forces native form elements to use dark theme */
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
@@ -21,7 +24,13 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
     .control{background:var(--card);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)}
+    
+    /* Native inputs/selects styling */
     input[type=text],select,input[type=date],input[type=time]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:inherit}
+    
+    /* Force options to be dark in supported browsers */
+    select option { background-color: #000; color: #fff; }
+
     .row{display:flex;gap:12px}
     .full{grid-column:1/-1}
     button.primary{background:white;border:none;color:black;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
@@ -31,6 +40,65 @@
     .small{font-size:13px;color:var(--muted)}
     .footer{display:none;}
     a.link{color:var(--accent-2);text-decoration:none}
+
+    /* --- Custom Dropdown Styling --- */
+    .custom-select-container {
+      position: relative;
+      width: 100%;
+    }
+    .custom-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: inherit;
+      cursor: pointer;
+      user-select: none;
+    }
+    .custom-select-trigger:after {
+      content: "▼";
+      font-size: 0.7em;
+      margin-left: 10px;
+      color: var(--muted);
+    }
+    .custom-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      margin-top: 4px;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .custom-options.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .custom-option {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .custom-option:last-child { border-bottom: none; }
+    .custom-option:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .custom-option.selected {
+      background: rgba(255,255,255,0.15);
+      font-weight: 600;
+    }
 
     /* responsive */
     @media (max-width:720px){.grid{grid-template-columns:1fr}.row{flex-direction:column}}
@@ -307,15 +375,21 @@
 
       <div class="full">
         <label for="downloadMode">Download mode</label>
-        <select id="downloadMode">
-          <option value="direct">Direct downloads (one file per browser download)</option>
-          <option value="list">Only show file list (no auto-download)</option>
-        </select>
+        <!-- Custom Dropdown Structure -->
+        <div class="custom-select-container" id="customDownloadMode">
+          <div class="custom-select-trigger">Download as ZIP archive</div>
+          <div class="custom-options">
+            <div class="custom-option selected" data-value="zip">Download as ZIP archive</div>
+            <div class="custom-option" data-value="list">Only show file list (no auto-download)</div>
+          </div>
+        </div>
+        <!-- Hidden input to maintain compatibility with logic -->
+        <input type="hidden" id="downloadMode" value="zip">
       </div>
 
       <div class="full small">
         <label>Notes</label>
-        <div class="control small">This runs fully client-side and fetches the public S3 index. Depending on browser settings you will get one download prompt per file when using <strong>Direct downloads</strong>. Use "Only show file list" to inspect before downloading or to feed to a separate downloader.</div>
+        <div class="control small">This runs fully client-side and fetches the public S3 index. <strong>Download as ZIP</strong> will fetch all selected files into memory and compress them before prompting for a single download. Use "Only show file list" to inspect before downloading.</div>
       </div>
 
       <div class="full" style="display:flex;gap:12px;margin-top:10px">
@@ -331,6 +405,42 @@
   </div>
 
   <script>
+    // Custom Dropdown Logic
+    const customSelect = document.getElementById('customDownloadMode');
+    const trigger = customSelect.querySelector('.custom-select-trigger');
+    const optionsContainer = customSelect.querySelector('.custom-options');
+    const options = customSelect.querySelectorAll('.custom-option');
+    const hiddenInput = document.getElementById('downloadMode');
+
+    // Toggle dropdown
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      optionsContainer.classList.toggle('open');
+    });
+
+    // Handle selection
+    options.forEach(option => {
+      option.addEventListener('click', () => {
+        // Update styling
+        options.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        
+        // Update trigger text and hidden input value
+        trigger.textContent = option.textContent;
+        hiddenInput.value = option.getAttribute('data-value');
+        
+        // Close dropdown
+        optionsContainer.classList.remove('open');
+      });
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!customSelect.contains(e.target)) {
+        optionsContainer.classList.remove('open');
+      }
+    });
+
     // Public NEXRAD S3 bucket base
     const BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/";
 
@@ -426,23 +536,58 @@
         return;
       }
 
-      // direct download mode
-      statusEl.textContent = `Downloading ${matched.length} files (your browser may prompt per file)...`;
-      let count = 0;
-      for(const item of matched){
-        const url = BUCKET + item.key;
-        try{
-          triggerDownload(url,item.name);
-          count++;
-          statusEl.textContent = `Triggered download ${count}/${matched.length}`;
-          // small delay to avoid overwhelming browser (adjust if needed)
-          await new Promise(r=>setTimeout(r,180));
-        }catch(e){console.error('download fail',e)}
+      // ZIP download mode (formerly direct)
+      // Check for zip/direct compatibility
+      if (mode === 'zip' || mode === 'direct') {
+        statusEl.textContent = `Preparing to fetch and zip ${matched.length} files...`;
+        
+        if (matched.length === 0) {
+            statusEl.textContent = "No files found to download.";
+            return;
+        }
+
+        const zip = new JSZip();
+        let count = 0;
+        let failCount = 0;
+
+        for (const item of matched) {
+            const fileUrl = BUCKET + item.key;
+            statusEl.textContent = `Fetching file ${count + 1} of ${matched.length}: ${item.name}...`;
+            
+            try {
+                // Fetch blob data
+                const response = await fetch(fileUrl);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const blob = await response.blob();
+                
+                // Add to zip
+                zip.file(item.name, blob);
+                count++;
+            } catch (err) {
+                console.error("Fetch failed for", item.name, err);
+                failCount++;
+            }
+        }
+
+        if (count === 0) {
+            statusEl.textContent = "Failed to download any files (possibly CORS restricted).";
+            return;
+        }
+
+        statusEl.textContent = `Compressing ${count} files into ZIP archive...`;
+        
+        try {
+            const content = await zip.generateAsync({type: "blob"});
+            const zipName = `NEXRAD_${radar}_${date.replace(/-/g,'')}.zip`;
+            triggerDownload(URL.createObjectURL(content), zipName);
+            statusEl.textContent = `Done! ZIP archive downloaded (${count} files). ${failCount > 0 ? `(${failCount} failed)` : ''}`;
+        } catch (err) {
+            statusEl.textContent = "Error generating ZIP: " + err.message;
+        }
       }
-      statusEl.textContent = `Done — triggered ${count} downloads.`;
     }
 
-    document.getElementById('downloadBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:'direct'}));
+    document.getElementById('downloadBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:document.getElementById('downloadMode').value}));
     document.getElementById('showBtn').addEventListener('click', ()=>gatherAndMaybeDownload({mode:'list'}));
 
     // initialize selects to today
