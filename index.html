@@ -543,20 +543,24 @@
 
     function pad(n){return String(n).padStart(2,'0')}
 
+    // UPDATED PARSE TIMESTAMP: Use Regex instead of splitting strings
     // parse filename timestamp like KHGX20220322_120125_V06 (Time is UTC)
     function parseTimestamp(name){
       try{
-        const [a,b] = name.split('_');
-        const date = a.slice(-8); // 20220322
-        const time = b.slice(0,6); // 120125
+        // Match standard NEXRAD pattern: YYYYMMDD_HHMMSS
+        // This ignores prefix/suffixjunk like "KDMX" or "V06.gz"
+        const match = name.match(/(\d{8})_(\d{6})/);
+        if(!match) return null;
         
-        // Explicitly create UTC date
-        const y = parseInt(date.slice(0,4));
-        const m = parseInt(date.slice(4,6)) - 1; 
-        const d = parseInt(date.slice(6,8));
-        const H = parseInt(time.slice(0,2));
-        const M = parseInt(time.slice(2,4));
-        const S = parseInt(time.slice(4,6));
+        const datePart = match[1]; // 20080525
+        const timePart = match[2]; // 120000
+        
+        const y = parseInt(datePart.slice(0,4));
+        const m = parseInt(datePart.slice(4,6)) - 1; 
+        const d = parseInt(datePart.slice(6,8));
+        const H = parseInt(timePart.slice(0,2));
+        const M = parseInt(timePart.slice(2,4));
+        const S = parseInt(timePart.slice(4,6));
 
         return new Date(Date.UTC(y, m, d, H, M, S));
       }catch(e){return null}
@@ -676,12 +680,23 @@
       }
 
       const matched = [];
+      let debugCounter = 0; // For logging first 5 files
+
       for(const item of items){
         const fname = item.key.split('/').pop();
 
         if (!fname.startsWith(radar)) continue;
 
         const dt = parseTimestamp(fname);
+        
+        // DEBUGGING LOG FOR FIRST 5 FILES
+        if(debugCounter < 5) {
+            console.log(`Checking file: ${fname}`);
+            console.log(`   Parsed Date: ${dt ? dt.toISOString() : 'NULL'}`);
+            console.log(`   InRange: ${dt && dt>=startDT && dt<=endDT}`);
+            debugCounter++;
+        }
+
         if(dt && dt>=startDT && dt<=endDT){ 
             matched.push({
                 key: item.key, 
